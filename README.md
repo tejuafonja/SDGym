@@ -113,9 +113,23 @@ by your synthesizer on each dataset.
 ## Benchmarking the SDGym Synthesizers
 
 If you want to run the SDGym benchmark on the SDGym Synthesizers you can directly pass the
-corresponding class, or a list of classes, to the `sdgym.run` function.
+corresponding class, or a list of classes, to the `sdgym.run` function. For example, if you wanted
+to benchmark the CTGAN synthesizer on all the available datasets, you could simply run the following code:
+```python
+from sdgym.synthesizers import CTGAN
 
-For example, if you want to run the complete benchmark suite to evaluate all the existing
+scores = sdgym.run(synthesizers=CTGAN)
+```
+
+A few useful parameters of the `run` method are:
+```
+datasets (list[str]): Names of the datasets to use for the benchmark. Defaults to all the ones available.
+datasets_path (str): Path to where the datasets can be found. If not given, use the default path.
+metrics (list[str]): List of metrics to apply.
+iterations (int): Number of iterations to perform over each dataset and synthesizer. Defaults to 3.
+```
+
+If you want to run the complete benchmark suite to evaluate all the existing
 synthesizers you can run (:warning: this will take a lot of time to run!):
 
 ```python
