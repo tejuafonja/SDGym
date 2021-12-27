@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from sdgym.synthesizers.base import LegacySingleTableBaseline
 from sdgym.synthesizers.utils import GeneralTransformer, select_device
 
+torch.autograd.set_detect_anomaly(True)
+
 
 class Reconstructor(Module):
 
@@ -123,31 +125,34 @@ class VEEGAN(LegacySingleTableBaseline):
         std = mean + 1
         for i in range(self.epochs):
             for id_, data in enumerate(loader):
-                real = data[0].to(self.device)
-                realz = reconstructor(real)
-                y_real = discriminator(torch.cat([real, realz], dim=1))
+                x_real = data[0].to(self.device)
+                z_real = reconstructor(x_real)
 
-                fakez = torch.normal(mean=mean, std=std)
-                fake = self.generator(fakez, self.transformer.output_info)
-                fakezrec = reconstructor(fake)
-                y_fake = discriminator(torch.cat([fake, fakez], dim=1))
+                z = torch.normal(mean=mean, std=std)
+                x_fake = self.generator(z, self.transformer.output_info)
 
+                z_fake = reconstructor(x_fake)
+
+                y_real = discriminator(torch.cat([x_real, z_real], dim=1))
+                y_fake = discriminator(torch.cat([x_fake, z], dim=1))
+
+                optimizerD.zero_grad()
                 loss_d = (
-                    -(torch.log(torch.sigmoid(y_real) + 1e-4).mean())
+                    - (torch.log(torch.sigmoid(y_real) + 1e-4).mean())
                     - (torch.log(1. - torch.sigmoid(y_fake) + 1e-4).mean())
                 )
-
-                numerator = -y_fake.mean() + mse_loss(fakezrec, fakez, reduction='mean')
-                loss_g = numerator / self.embedding_dim
-                loss_r = numerator / self.embedding_dim
-                optimizerD.zero_grad()
                 loss_d.backward(retain_graph=True)
-                optimizerD.step()
+
                 optimizerG.zero_grad()
+                loss_g = -y_fake.mean() + mse_loss(z_fake, z, reduction='mean')
                 loss_g.backward(retain_graph=True)
-                optimizerG.step()
+
                 optimizerR.zero_grad()
+                loss_r = y_real.mean() + mse_loss(z_fake, z, reduction='mean')
                 loss_r.backward()
+
+                optimizerD.step()
+                optimizerG.step()
                 optimizerR.step()
 
     def sample(self, n):
